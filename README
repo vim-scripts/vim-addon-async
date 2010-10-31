@@ -1,0 +1,13 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=3307
+
+start external processes using VimL, write to their stdin and get notified when they produce output or kill the process when you're done.
+
+This plugin also implements an experimental minimalistic terminal like interface so that you can run you favourite interpreter (irb, python, /bin/sh, sbt, scala, ...) inside a simple Vim buffer.
+
+The API is non blocking and should be strong enough to enterface with debuggers etc.
+
+Implementation details: You have to compile an external c helper application which interfaces with the external process notifying Vim about arriving stdout blocks by using the client-server feature.
+
+Its used in production by me. Interface may still change slightly in the future. Under some conditions Vim crashes although it shouldn't. Try it and report how well it works for you.
+
+If you've trouble getting started contact me.
