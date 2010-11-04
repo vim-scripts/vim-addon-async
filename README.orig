@@ -29,11 +29,13 @@ porcelain LogToBuffer running interactive interpreter shells within Vim buffers:
 How powerful this simple interface is is illustrated by
 LogToBuffer which is porcelain on top of the API:
 
-  call async#LogToBuffer({'cmd':'python -i', 'move_last':1, 'prompt': '^>>> $'})
+  call async_porcelaine#LogToBuffer({'cmd':'python -i', 'move_last':1, 'prompt': '^>>> $'})
   then type:
     oprint "abc"<space><cr>
   (everything started by "> " will be treated as text to be sent to python when
   <space><cr> is typed in insert mode
+  Alternatively you can visually select lines and press <cr> in visual mode to
+  send the text to the buffer as is (thus no leading > will be removed)
 
   See commentary of the LogToBuffer function has more sophisticated examples.
 
@@ -75,6 +77,7 @@ For now I recommend using impl 2) (gvim) or impl 1) (non gui version of Vim)
 
   impl 1 native):
   ================
+      (out of order because API changed)
 
       compile my async version of Vim (github.com/MarcWeber/vim branch "work").
       (-) doesn't work in gui very well yet. That's why its not used in that case
@@ -87,6 +90,9 @@ For now I recommend using impl 2) (gvim) or impl 1) (non gui version of Vim)
       cd C; gcc -o vim-addon-async-helper vim-addon-async-helper.c
       (-) requires client server (X connection or the like
       (-) 20ms delay (vim -> app)
+
+    tested on linux and OSX. It should be easy to find a way to make the helper
+    app run on Windows as well.. Any volunteers ?
 
   impl 3 possible others):
   ================
@@ -125,6 +131,8 @@ This would be another perfect match to provide a different implementation.
 
 IMHO their only issue is that they block Vim if have long running tasks.
 
+  Screen (vim + gnu screen/tmux) : Simulate a split shell, using gnu screen or tmux:
+  http://www.vim.org/scripts/script.php?script_id=2711
 
 yet two another examples:
 ==============================================================================
@@ -170,6 +178,10 @@ VIML CODE EXAMPLE: >
   endf
   call async_exec(ctx2)
 
+TIPS:
+==============================================================================
+this debugging worked best for me:
+call append('$', string)
 
 TODO:
 ===============================================================================

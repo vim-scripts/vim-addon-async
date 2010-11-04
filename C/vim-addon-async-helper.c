@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <error.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
@@ -11,6 +10,9 @@
  // wait 50ms before polling again
 #define TOWAIT 20
 #define BUF_SIZE 4048
+
+#define SHELL_NAME "sh"
+#define SHELL "/bin/sh"
 
 /* author: Marc Weber
  * license: same as Vim .c code
@@ -107,7 +109,6 @@ void send(char * vimExecutable, char *vimServerName, char * processId, char * bu
   argv3[1] = "--servername";
   argv3[2] = vimServerName;
   argv3[3] = "--remote-expr";
-  printf("command is %s\n", command);
   argv3[4] = command;
   argv3[5] = NULL;
 
@@ -196,12 +197,13 @@ int main(int argc, char * argv[])
 	ignored = dup(fd_fromshell[1]);
 	close(fd_fromshell[1]);
 
-        if (0 != system(cmd)){
-          printf("starting cmd %s failed\n", cmd);
-          exit(1);
-        } else {
-          exit(0);
-        }
+        char * argv[3];
+        argv[0] = SHELL_NAME;
+        argv[1] = "-c";
+        argv[2] = cmd;
+        argv[3] = 0;
+
+        execv(SHELL, argv);
     }
 
     /* parent */
@@ -218,6 +220,41 @@ int main(int argc, char * argv[])
     snprintf(&s_pid[0], sizeof(s_pid), "p%d", pid);
     send(vimExecutable, vimServerName, processId, s_pid, strlen(s_pid));
 
+    // process watching for vim -> process input:
+
+    // fork and close pipe ends
+    int pidInut;
+    pidInut = fork();
+    if (pid == -1) {
+	printf("fork failed\n");
+	goto error_fork;
+
+    } else if (pidInut == 0) { /* child */
+       while (1){
+         FILE * f_input = fopen(inputFile, "r");
+         int read_bytes;
+         char buf[BUF_SIZE];
+
+         // check for input .. probably I should be creating a fifo ..
+         if (f_input != NULL) {
+           printf("got file from vim \n");
+           read_bytes = fread(&buf, 1, BUF_SIZE-1, f_input);
+           buf[read_bytes] = 0;
+           printf("got bytes: %d \n%s\n", read_bytes, &buf[0]);
+           size_t written = write(fd_to, &buf[0], read_bytes);
+           if (written != read_bytes) printf("failed writing all bytes\n");
+           fclose(f_input);
+           unlink(inputFile);
+         }
+
+         struct timeval  tv;
+         tv.tv_sec = TOWAIT / 1000;
+         tv.tv_usec = (TOWAIT % 1000) * (1000000/1000);
+
+         int ret = select(0, NULL, NULL, NULL, &tv);
+       }
+    }
+
     // poll / select loop
 
      int read_bytes;
@@ -226,20 +263,6 @@ int main(int argc, char * argv[])
 
 
      while (1){
-       FILE * f_input = fopen(inputFile, "r");
-
-       // check for input .. probably I should be creating a fifo ..
-       if (f_input != NULL) {
-         printf("got file from vim \n");
-         read_bytes = fread(&buf, 1, BUF_SIZE-1, f_input);
-         buf[read_bytes] = 0;
-         printf("got bytes: %d \n%s\n", read_bytes, &buf[0]);
-         size_t written = write(fd_to, &buf[0], read_bytes);
-         if (written != read_bytes) printf("failed writing all bytes\n");
-         fclose(f_input);
-         unlink(inputFile);
-       }
-
        fd_set		rfds, efds;
 
        FD_ZERO(&rfds); /* calls bzero() on a sun */
@@ -249,7 +272,6 @@ int main(int argc, char * argv[])
        FD_SET(fd_from, &efds);
 
        struct timeval  tv;
-       struct timeval	*tvp;
 
        tv.tv_sec = TOWAIT / 1000;
        tv.tv_usec = (TOWAIT % 1000) * (1000000/1000);
@@ -263,7 +285,7 @@ int main(int argc, char * argv[])
          buf[0] = 'd';
          read_bytes = read(fd_from, &buf[1], BUF_SIZE-1);
          buf[read_bytes+1] = 0;
-         printf("sending bytes: %s\n", &buf[1]);
+         // printf("sending bytes: %s\n", &buf[1]);
          send(vimExecutable, vimServerName, processId, buf, read_bytes + 1);
          // wait until Vim has read the data
          if (read_bytes == 0)
