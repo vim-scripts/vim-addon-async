@@ -48,6 +48,7 @@ fun!  repl_ruby#HandleRubyCompletion(data) dict
     endfor
     
     call feedkeys(repeat("\<bs>",len(s:wait))."\<c-x>\<c-o>")
+  endif
 
 endf
 
@@ -100,7 +101,7 @@ fun! repl_ruby#RubyOmniComplete(findstart, base)
       " b:line is evaluated multiple times which is bad.
       
       let line = matchstr(b:line, '\%(> \)\?\zs.*\ze')
-      call b:ctx.write(line.'methods.map{|n| [n, '.line.'method(n).arity] }'."\n". "print :". b:.ctx.marker ."\n")
+      call b:ctx.write(line.'methods.map{|n| [n.to_s, '.line.'method(n).arity] }'."\n". "print :". b:.ctx.marker ."\n")
       call feedkeys(s:wait)
 
       return []

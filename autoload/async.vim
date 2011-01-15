@@ -119,12 +119,23 @@ fun! async#Exec(ctx)
       let impl = 'native'
     elseif has('clientserver') && v:servername != ''
        if !executable(s:async_helper_path) && 'y' == input('compile c hepler application? [y] ','')
-         exec '! gcc -o'. s:async_helper_path.' '.s:async_helper_path.'.c'
+         exec '!gcc '.shellescape('-o').' '.shellescape(s:async_helper_path).' '.shellescape(s:async_helper_path.'.c')
          if v:shell_error != 0 | throw "compiling helper app failed" | endif
        endif
       let impl = "c_executable"
     else
-      throw "no way to execute process. You must either have a patched Vim or  v:servername, != '' && has('clientserver') && executable(".s:async_helper_path.") "
+      "          failure condition                 message
+      let reasons = [
+            \ [ !has('clientserver')            ,  "no way to execute process. Vim must be either patched or compiled with clientserver support" ],
+            \ [ v:servername == ''              ,  "no severname provided. Please restart vim and use the --servername option" ],
+            \ [ !executable(s:async_helper_path),  "Couldn't find vim-addon-async executable" ]
+          \ ]
+      let reasons = map(filter(reasons,'v:val[0]'), 'v:val[1]')
+      if empty(reasons)
+        throw "unexpected case"
+      else
+        throw "don't know how to execute processes asynchronously on this installation. Possible reasons: ".join(reasons, ', ')
+      endif
     endif
   endif
 
